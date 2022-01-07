@@ -174,6 +174,37 @@ func (c *Client) BatchGet(ctx context.Context, keys [][]byte) ([][]byte, error) 
 	return values, nil
 }
 
+// PutWithCF stores key-value with a specified CF.
+func (c *Client) PutWithCF(ctx context.Context, key, value []byte, cf string) error {
+	start := time.Now()
+	defer func() { metrics.RawkvCmdHistogramWithBatchPut.Observe(time.Since(start).Seconds()) }()
+	metrics.RawkvSizeHistogramWithKey.Observe(float64(len(key)))
+	metrics.RawkvSizeHistogramWithValue.Observe(float64(len(value)))
+
+	if len(value) == 0 {
+		return errors.New("empty value is not supported")
+	}
+
+	req := tikvrpc.NewRequest(tikvrpc.CmdRawPut, &kvrpcpb.RawPutRequest{
+		Key:    key,
+		Value:  value,
+		Cf:     cf,
+		ForCas: c.atomic,
+	})
+	resp, _, err := c.sendReq(ctx, key, req, false)
+	if err != nil {
+		return err
+	}
+	if resp.Resp == nil {
+		return errors.WithStack(tikverr.ErrBodyMissing)
+	}
+	cmdResp := resp.Resp.(*kvrpcpb.RawPutResponse)
+	if cmdResp.GetError() != "" {
+		return errors.New(cmdResp.GetError())
+	}
+	return nil
+}
+
 // PutWithTTL stores a key-value pair to TiKV with a time-to-live duration.
 func (c *Client) PutWithTTL(ctx context.Context, key, value []byte, ttl uint64) error {
 	start := time.Now()
@@ -264,11 +295,17 @@ func (c *Client) BatchPut(ctx context.Context, keys, values [][]byte, ttls []uin
 
 // Delete deletes a key-value pair from TiKV.
 func (c *Client) Delete(ctx context.Context, key []byte) error {
+	return c.DeleteCF(ctx, key, "")
+}
+
+// DeleteCF deletes a key-value pair from TiKV.
+func (c *Client) DeleteCF(ctx context.Context, key []byte, cf string) error {
 	start := time.Now()
 	defer func() { metrics.RawkvCmdHistogramWithDelete.Observe(time.Since(start).Seconds()) }()
 
 	req := tikvrpc.NewRequest(tikvrpc.CmdRawDelete, &kvrpcpb.RawDeleteRequest{
 		Key:    key,
+		Cf:     cf,
 		ForCas: c.atomic,
 	})
 	req.MaxExecutionDurationMs = uint64(client.MaxWriteExecutionTime.Milliseconds())
