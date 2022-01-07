@@ -103,6 +103,18 @@ func (c *pdClient) GetLocalTSAsync(ctx context.Context, dcLocation string) pd.TS
 	return c.GetTSAsync(ctx)
 }
 
+func (c *pdClient) LoadGlobalConfig(ctx context.Context, s []string) ([]pd.GlobalConfigItem, error) {
+	return nil, nil
+}
+
+func (c *pdClient) StoreGlobalConfig(ctx context.Context, items []pd.GlobalConfigItem) error {
+	return nil
+}
+
+func (c *pdClient) WatchGlobalConfig(context.Context) (chan []pd.GlobalConfigItem, error) {
+	return nil, nil
+}
+
 type mockTSFuture struct {
 	pdc  *pdClient
 	ctx  context.Context
@@ -162,7 +174,7 @@ func (c *pdClient) GetAllStores(ctx context.Context, opts ...pd.GetStoreOption) 
 	return c.cluster.GetAllStores(), nil
 }
 
-func (c *pdClient) UpdateGCSafePoint(ctx context.Context, safePoint uint64) (uint64, error) {
+func (c *pdClient) UpdateGCSafePoint(ctx context.Context, safePoint uint64, savePoints []uint64) (uint64, error) {
 	c.gcSafePointMu.Lock()
 	defer c.gcSafePointMu.Unlock()
 

@@ -54,7 +54,7 @@ func (s *KVStore) GC(ctx context.Context, safepoint uint64) (newSafePoint uint64
 		return
 	}
 
-	return s.pdClient.UpdateGCSafePoint(ctx, safepoint)
+	return s.pdClient.UpdateGCSafePoint(ctx, safepoint, nil)
 }
 
 func (s *KVStore) resolveLocks(ctx context.Context, safePoint uint64, concurrency int) error {
